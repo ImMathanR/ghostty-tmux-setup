@@ -206,10 +206,12 @@ check() {  # check <label> <command...>
 tmux_conf_loads() {
   # A private tmux server on a throwaway socket, so a running session is
   # untouched. tpm is left out: continuum would restore saved sessions into it.
+  # AGENT_NO_PAINTER: a tab painter started here could still hold its lock
+  # when the first real Claude hook runs, which would then not start one.
   local sock="gts-check-$$" conf out agent
   conf="$(mktemp)"
   grep -v 'plugins/tpm/tpm' "$HOME/.tmux.conf" >"$conf"
-  out="$(tmux -L "$sock" -f "$conf" new-session -d -s check \; show -gv prefix 2>&1)"
+  out="$(AGENT_NO_PAINTER=1 tmux -L "$sock" -f "$conf" new-session -d -s check \; show -gv prefix 2>&1)"
   agent="$(tmux -L "$sock" show -gv window-status-format 2>/dev/null)"
   tmux -L "$sock" kill-server 2>/dev/null || true
   rm -f "$conf"

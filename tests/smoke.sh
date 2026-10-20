@@ -36,6 +36,10 @@ h = json.load(open(sys.argv[1]))["hooks"]
 raise SystemExit(sum(len(v) for v in h.values()) != 12)
 PY
 
+# A painter started by the check could still hold its lock when the first
+# real hook runs, which then skips starting one. The painter makes the lock.
+expect "installer's tmux check started no tab painter" test ! -e "$HOME/.claude/hooks/.tmux-agent-anim.lock"
+
 echo "==> Ghostty resolves the installed config"
 GB="$(command -v ghostty || echo /Applications/Ghostty.app/Contents/MacOS/ghostty)"
 if [ -x "$GB" ]; then
@@ -104,6 +108,8 @@ expect "SessionEnd clears the badge" test -z "$(tmux show -wqv -t "$pane" @agent
 echo "==> launcher attaches a client, cat sticker renders"
 tmux kill-server 2>/dev/null || true
 # script gives the client a terminal; the sleep keeps its stdin open.
+# tmux won't attach without a capable TERM (Ghostty sets one; containers don't).
+case "${TERM:-dumb}" in dumb|unknown) export TERM=xterm-256color ;; esac
 if script --version 2>/dev/null | grep -q util-linux; then   # Linux
   sleep 60 | script -q -c "$HOME/.local/bin/ghostty-tmux launched" /dev/null >/dev/null 2>&1 &
 else                                                          # macOS/BSD
