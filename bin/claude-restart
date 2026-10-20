@@ -1,0 +1,3 @@
+#!/bin/sh
+# Restart every Claude session in tmux onto the installed version, each back in its own conversation.
+exec python3 "$HOME/.claude/hooks/claude_restart.py" "$@"

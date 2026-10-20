@@ -1,0 +1,5 @@
+# runtime state, caches and backups
+.*
+!.gitignore
+__pycache__/
+*.bak-*
