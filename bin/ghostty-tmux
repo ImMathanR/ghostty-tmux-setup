@@ -1,0 +1,24 @@
+#!/bin/sh
+# Ghostty's `command`: attach to the tmux session "main", or create it.
+# Usage: ghostty-tmux [session-name]   (default: $GHOSTTY_TMUX_SESSION or main)
+#
+# Ghostty starts this with launchd's minimal PATH, so put Homebrew and
+# ~/.local/bin on PATH first. tmux passes this PATH on to every pane.
+
+for brew in /opt/homebrew/bin/brew /usr/local/bin/brew /home/linuxbrew/.linuxbrew/bin/brew; do
+  if [ -x "$brew" ]; then
+    eval "$("$brew" shellenv)"
+    break
+  fi
+done
+export PATH="$HOME/.local/bin:$PATH"
+
+session="${1:-${GHOSTTY_TMUX_SESSION:-main}}"
+
+if ! command -v tmux >/dev/null 2>&1; then
+  echo "ghostty-tmux: tmux is not installed. Run install.sh from the ghostty-tmux-setup repo." >&2
+  exec "${SHELL:-/bin/zsh}" -l
+fi
+
+# -A attaches when the session exists and creates it otherwise.
+exec tmux new-session -A -s "$session"

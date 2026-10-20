@@ -1,0 +1,105 @@
+# ── Editor and TAS shortcuts ──────────────────────────────────
+# Included from ./config. These send escape sequences that neovim (the TAS
+# nvim config) and TAS's tmux bindings (tas-keys.conf) understand. Outside
+# nvim they reach the shell as plain key presses. Delete this file, or the
+# config-file line in ./config, to turn them all off.
+
+# Buffer tabs: next/prev (Ctrl+Tab / Ctrl+Shift+Tab → Esc+Ctrl-N / Esc+Ctrl-F)
+keybind = ctrl+tab=text:\x1b\x0e
+keybind = ctrl+shift+tab=text:\x1b\x06
+
+# Gradle popup menu (Cmd+G → prefix + g)
+keybind = super+g=text:\x01g
+
+# Undo (Cmd+Z → Escape then u, works in any neovim mode)
+keybind = super+z=unbind
+keybind = super+z=text:\x1bu
+
+# Go to definition / show usages (Cmd+B → Ctrl+B, passed through to neovim)
+keybind = super+b=unbind
+keybind = super+b=text:\x02
+
+# ── IntelliJ-style shortcuts ──────────────────────────────────
+# Navigate back (Cmd+[ — must unbind Ghostty's goto_split:previous)
+keybind = super+[=unbind
+keybind = super+[=text:\x1b\x0f
+# Navigate forward (Cmd+] — must unbind Ghostty's goto_split:next)
+keybind = super+]=unbind
+keybind = super+]=text:\x1b\x09
+# Go to class/symbol (Cmd+O → Esc + Ctrl-P)
+keybind = super+o=unbind
+keybind = super+o=text:\x1b\x10
+# Go to file / search in files (Cmd+Shift+O → Esc + Ctrl-T)
+keybind = super+shift+o=text:\x1b\x14
+# Comment toggle (Cmd+/ → Esc + /)
+keybind = super+/=text:\x1b/
+# Recent files (Cmd+E → Esc + Ctrl-E)
+keybind = super+e=text:\x1b\x05
+# Reformat code (Cmd+Alt+L → Esc + Ctrl-L)
+keybind = super+alt+l=text:\x1b\x0c
+# Parameter info (Cmd+P → Esc + Ctrl-Q)
+keybind = super+p=unbind
+keybind = super+p=text:\x1b\x11
+# Find and replace (Cmd+R → Esc + Ctrl-R)
+keybind = super+r=text:\x1b\x12
+# Last edit location (Cmd+Shift+Backspace → Esc + Ctrl-X)
+keybind = super+shift+backspace=text:\x1b\x18
+
+# Locate file in sidebar (Cmd+Shift+L → prefix+L)
+keybind = super+shift+l=text:\x01L
+
+# Panel toggle (Cmd+Shift+E → prefix+e = toggle left panel)
+keybind = super+shift+e=text:\x01e
+
+# Device mirror toggle (Cmd+Shift+M → prefix + m)
+keybind = super+shift+m=text:\x01m
+
+# -- Git operations (prefix-based for escape-time=0 compatibility) --
+# Git commit (Cmd+Shift+K → prefix+K)
+keybind = super+shift+k=text:\x01K
+# Diff view (Cmd+Shift+V → prefix+V)
+keybind = super+shift+v=text:\x01V
+# Git log (Cmd+Shift+G → prefix+G)
+keybind = super+shift+g=text:\x01G
+
+# ── Android Studio shortcuts (Mac defaults) ───────────────────────
+# Navigation
+# Cmd+Alt+B → Go to implementation
+keybind = super+alt+b=text:\x1b\x02
+# Cmd+U → Go to super (type definition / grep "override")
+keybind = super+u=text:\x1bU
+# Cmd+Y → Quick definition (peek hover)
+keybind = super+y=text:\x1bY
+# Cmd+Shift+A → Find action (Telescope commands)
+keybind = super+shift+a=text:\x1bA
+# Cmd+F12 → File structure popup (Telescope lsp_document_symbols)
+keybind = super+f12=text:\x1bF
+# Editing
+# Cmd+Shift+Up/Down → Move line up/down
+keybind = super+shift+up=text:\x1b[1;4A
+keybind = super+shift+down=text:\x1b[1;4B
+# Cmd+Shift+J → Smart line join
+keybind = super+shift+j=text:\x1bJ
+# Cmd+, → Settings (edit init.lua)
+keybind = super+comma=text:\x1b,
+# Cmd++ / Cmd+- → Expand/collapse fold (super+equal because + needs shift on most keyboards)
+keybind = super+equal=text:\x1b+
+keybind = super+minus=text:\x1b-
+# Refactoring (LSP code-action with refactor.* kind filters)
+# Cmd+Alt+V → Extract variable
+keybind = super+alt+v=text:\x1bV
+# Cmd+Alt+M → Extract method  (X chosen so it doesn't collide with M-CR=Alt+Enter)
+keybind = super+alt+m=text:\x1bX
+# Cmd+Alt+C → Extract constant
+keybind = super+alt+c=text:\x1bC
+# Cmd+Alt+N → Inline
+keybind = super+alt+n=text:\x1bN
+# Debug aliases (alongside F5/F10/F11/F12)
+# Cmd+F2 → Stop debug
+keybind = super+f2=text:\x1bS
+# Cmd+F8 → Toggle breakpoint
+keybind = super+f8=text:\x1bP
+# Multi-cursor (vim-visual-multi)
+# Cmd+Ctrl+G → Select all occurrences
+keybind = super+ctrl+g=text:\x1bg
+

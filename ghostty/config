@@ -1,0 +1,163 @@
+# -- Theme: Matte Black --
+background = #121212
+foreground = #bebebe
+selection-background = #555555
+selection-foreground = #FFC107
+selection-invert-fg-bg = false
+cursor-color = #eaeaea
+
+# Matte Black palette
+palette = 0=#333333
+palette = 1=#D35F5F
+palette = 2=#FFC107
+palette = 3=#FFC107
+palette = 4=#e68e0d
+palette = 5=#D35F5F
+palette = 6=#bebebe
+palette = 7=#bebebe
+palette = 8=#8a8a8d
+palette = 9=#B91C1C
+palette = 10=#FFC107
+palette = 11=#FFD54F
+palette = 12=#f59e0b
+palette = 13=#B91C1C
+palette = 14=#eaeaea
+palette = 15=#ffffff
+
+# -- Transparency --
+background-opacity = 0.85
+unfocused-split-opacity = 0.9
+
+# -- Font (omarchy: JetBrainsMono Nerd Font) --
+font-family = JetBrainsMono Nerd Font
+font-style = Regular
+font-size = 14
+
+# -- Cursor (omarchy: block, no blink) --
+cursor-style = block
+cursor-style-blink = false
+
+# -- Window (omarchy: 14px padding, no close confirm) --
+window-padding-x = 14
+window-padding-y = 14
+window-decoration = true
+macos-titlebar-style = hidden
+window-save-state = always
+confirm-close-surface = false
+quit-after-last-window-closed = true
+resize-overlay = never
+
+# Disable native macOS tabs (we use tmux windows instead)
+# This prevents macOS from stealing Cmd+1-9 for tab switching
+macos-shortcuts = deny
+
+# -- Scroll --
+mouse-scroll-multiplier = 3
+
+# -- Launch tmux (bin/ghostty-tmux attaches to the "main" session) --
+# shell: makes Ghostty run this through /bin/sh, which expands the ~.
+command = shell:~/.local/bin/ghostty-tmux
+
+# -- Keybindings mapped to tmux actions --
+# Split panes (sends tmux prefix + key)
+# Cmd+D: conditional — nvim pane → duplicate line, else → split horizontal.
+# Routed via prefix+C-d in tmux.conf (tas-keys.conf overrides it) so tmux can branch on @nvim_pane.
+keybind = super+d=text:\x01\x04
+keybind = super+shift+d=text:\x01-
+
+# Navigate panes with Cmd+Arrow
+keybind = super+left=text:\x01\x1b[D
+keybind = super+right=text:\x01\x1b[C
+keybind = super+up=text:\x01\x1b[A
+keybind = super+down=text:\x01\x1b[B
+
+# New tab / window (tmux window) — unbind Ghostty native tab first
+keybind = super+t=unbind
+keybind = super+t=text:\x01c
+
+# Close pane
+keybind = super+w=unbind
+keybind = super+w=text:\x01x
+
+# Close entire window/tab (all panes)
+keybind = super+ctrl+w=text:\x01\x17
+
+# Switch tmux windows with Cmd+1-9 — unbind both Ghostty key name variants
+keybind = super+one=unbind
+keybind = super+digit_1=unbind
+keybind = super+one=text:\x011
+keybind = super+two=unbind
+keybind = super+digit_2=unbind
+keybind = super+two=text:\x012
+keybind = super+three=unbind
+keybind = super+digit_3=unbind
+keybind = super+three=text:\x013
+keybind = super+four=unbind
+keybind = super+digit_4=unbind
+keybind = super+four=text:\x014
+keybind = super+five=unbind
+keybind = super+digit_5=unbind
+keybind = super+five=text:\x015
+keybind = super+six=unbind
+keybind = super+digit_6=unbind
+keybind = super+six=text:\x016
+keybind = super+seven=unbind
+keybind = super+digit_7=unbind
+keybind = super+seven=text:\x017
+keybind = super+eight=unbind
+keybind = super+digit_8=unbind
+keybind = super+eight=text:\x018
+keybind = super+nine=unbind
+keybind = super+digit_9=unbind
+keybind = super+nine=text:\x019
+
+# Rename window
+keybind = super+shift+r=text:\x01,
+
+# Detach (Cmd+Shift+Q) — leaves session alive
+keybind = super+shift+q=text:\x01d
+
+# Zoom pane / auto-import (conditional in tmux: nvim pane → auto-import, else zoom)
+# Sends prefix+Z; tas-keys.conf 'bind Z' routes based on @nvim_pane.
+keybind = super+shift+enter=text:\x01Z
+
+# Reload tmux config
+# Reload tmux config (Cmd+Ctrl+R)
+keybind = super+ctrl+r=text:\x01r
+
+# Next/prev tmux window (Cmd+Shift+[ / Cmd+Shift+])
+keybind = super+shift+]=unbind
+keybind = super+shift+]=text:\x01n
+keybind = super+shift+[=unbind
+keybind = super+shift+[=text:\x01p
+
+# Clear screen + scrollback (TAS: command palette) (Cmd+K → prefix+k)
+keybind = super+k=text:\x01k
+
+# Search in tmux scrollback (enters copy mode + search)
+keybind = super+f=unbind
+keybind = super+f=text:\x01[/
+
+# Copy mode (scrollback)
+keybind = super+shift+f=text:\x01[
+
+# Source zshrc (Cmd+Shift+S)
+keybind = super+shift+s=text:source ~/.zshrc\x0d
+
+# Lazygit popup (Cmd+L → prefix + ')
+keybind = super+l=text:\x01'
+
+# Cmd+J: peek at agent tabs (tmux prefix + j)
+keybind = super+j=text:\x01j
+
+# -- Amber cursor trail --
+# sahaj-b/ghostty-cursor-shaders cursor_warp, tinted amber (MIT, see
+# shaders/LICENSE.cursor-shaders). The path is relative to this file.
+custom-shader = shaders/amber-warp.glsl
+
+# Measure character widths like tmux does (CJK/emoji misrendering under tmux)
+grapheme-width-method = legacy
+
+# -- Editor and TAS shortcuts (nvim / Android Studio style) --
+# Optional: the leading ? means Ghostty skips the file if it's missing.
+config-file = ?ide-keys
