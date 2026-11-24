@@ -16,7 +16,9 @@ def setup():
     tmux("kill-server")
     tmux("-f", "/dev/null", "new-session", "-d", "-s", "t", "sleep 600")
     sock = tmux("display", "-p", "#{socket_path}")
-    return {**os.environ, "TMUX": sock + ",0,0", "TMUX_PANE": tmux("display", "-p", "#{pane_id}")}
+    # AGENT_STATE_FG keeps the hook in the foreground, so each assert sees its result
+    return {**os.environ, "TMUX": sock + ",0,0", "TMUX_PANE": tmux("display", "-p", "#{pane_id}"),
+            "AGENT_STATE_FG": "1"}
 
 
 def hook(env, event, arg, **extra):
@@ -26,10 +28,30 @@ def hook(env, event, arg, **extra):
     return tmux("show", "-wqv", "-t", env["TMUX_PANE"], "@agent")
 
 
+def test_hook_returns_at_once_when_launches_are_slow(tmp_path):
+    # endpoint security can make each program launch take seconds; Claude kills a
+    # hook after 5 s ("UserPromptSubmit hook ... timed out"), so the work goes to the background
+    env = setup()
+    del env["AGENT_STATE_FG"]
+    real = subprocess.run(["sh", "-c", "command -v tmux"], capture_output=True, text=True).stdout.strip()
+    (tmp_path / "tmux").write_text("#!/bin/sh\nsleep 1.5\nexec %s \"$@\"\n" % real)
+    (tmp_path / "tmux").chmod(0o755)
+    env["PATH"] = "%s:%s" % (tmp_path, env["PATH"])
+    start = time.monotonic()
+    subprocess.run(["sh", os.path.join(HERE, "tmux-agent-state.sh"), "working"],
+                   input=json.dumps({"hook_event_name": "PostToolUse"}), text=True, env=env,
+                   capture_output=True, timeout=30)
+    assert time.monotonic() - start < 1
+    deadline = time.monotonic() + 15
+    while tmux("show", "-wqv", "-t", env["TMUX_PANE"], "@agent") != "working":
+        assert time.monotonic() < deadline, "state never landed"
+        time.sleep(0.2)
+
+
 def test_late_tool_hook_does_not_erase_a_failure():
     env = setup()
     assert hook(env, "StopFailure", "failed") == "failed"
-    assert hook(env, "PostToolUse", "working") == "failed"   # the race that hid laya-deploy's failure
+    assert hook(env, "PostToolUse", "working") == "failed"   # a late hook must not hide a failure
     assert hook(env, "PreToolUse", "working", tool_name="Bash") == "failed"
 
 

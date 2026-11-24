@@ -5,7 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 me=$(id -un)
-pattern="/Users/[A-Za-z0-9._-]+|/home/[A-Za-z0-9._-]+|/root/|$me"
+pattern="/[U]sers/[A-Za-z0-9._-]+|/home/[A-Za-z0-9._-]+|/root/|$me|[b]yted|[l]arkoffice|[m]athan"
 # This script names the patterns it looks for, so skip it. /home/linuxbrew
 # is Homebrew's own prefix on Linux, not a person's home.
 hits=$(git ls-files -co --exclude-standard -z \

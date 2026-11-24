@@ -6,8 +6,9 @@ cat stickers.
 
 ## Install
 
+Clone this repository, then run:
+
 ```sh
-git clone https://github.com/ImMathanR/ghostty-tmux-setup.git
 cd ghostty-tmux-setup
 ./install.sh
 ```
@@ -135,6 +136,14 @@ its tmux tab:
 
 Looking at a finished tab clears its badge.
 
+### Rex cat card
+
+In the Rex terminal, a cat GIF card floats over the pane when an agent
+finishes. It also appears for permission prompts and errors. It needs
+Python 3 + Pillow and `rex` on `PATH`. It's off unless running in Rex
+(`REX_SESSION` is set), without tmux. Set `REX_CATS=0` to turn it off there
+too. If needed, set `REX_BIN` or `REX_CAT_PYTHON` to your executables.
+
 ## Tests
 
 ```sh
@@ -145,6 +154,8 @@ This runs three checks:
 
 -   `tests/check-paths.sh`: no file names a personal home directory or user.
 -   The Python unit tests for the hooks and the settings merge.
+    The Rex layer syntax check uses `lua` or `luajit` if installed; it
+    doesn't connect to a running Rex session.
 -   `tests/smoke.sh`: installs into a temporary `HOME`, then drives a
     sandboxed tmux server. It checks that the plugins load, that every key
     Ghostty sends has a tmux binding, that hook events paint the tab, that the

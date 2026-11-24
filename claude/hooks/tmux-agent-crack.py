@@ -20,15 +20,7 @@ import subprocess
 import sys
 import time
 
-try:
-    from PIL import Image, ImageChops, ImageDraw, ImageFont
-except ImportError:
-    # The python3 first on PATH can lack Pillow (macOS's own /usr/bin/python3
-    # once path_helper puts it first), so retry under Homebrew's.
-    for py in ("/opt/homebrew/bin/python3", "/usr/local/bin/python3"):
-        if os.access(py, os.X_OK) and os.path.realpath(py) != os.path.realpath(sys.executable):
-            os.execv(py, [py] + sys.argv)
-    raise
+from PIL import Image, ImageChops, ImageDraw, ImageFont
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 CACHE = os.path.join(HERE, ".crack-cache")

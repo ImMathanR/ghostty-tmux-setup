@@ -6,11 +6,22 @@
 #   done     turn finished while you were looking elsewhere
 #   failed   turn ended on an API error (StopFailure); stays until next prompt
 #   (unset)  nothing to report
+# In Rex without tmux, report through Rex's own Program Status protocol instead.
+if [ -z "${TMUX_PANE:-}" ] && [ -n "${REX_SESSION:-}" ]; then
+  exec bash "$(dirname "$0")/rex-agent-status.sh" "$@"
+fi
 [ -n "${TMUX_PANE:-}" ] || exit 0
 command -v jq >/dev/null 2>&1 || exit 0
 
 state="${1:-}"
 input=$(cat)
+# Claude waits for this hook and kills it after 5 s; with endpoint security each
+# launch below can take seconds, so the rest runs detached and the hook returns
+# at once. (Tests set AGENT_STATE_FG to stay in the foreground.)
+if [ -z "${AGENT_STATE_FG:-}" ]; then
+  printf '%s' "$input" | AGENT_STATE_FG=1 nohup sh "$0" "$@" >/dev/null 2>&1 &
+  exit 0
+fi
 # one jq call for all fields (each program launch is scanned by endpoint security)
 eval "$(printf '%s' "$input" | jq -r '@sh "event=\(.hook_event_name // "") agent=\(.agent_id // "") ntype=\(.notification_type // "") tool=\(.tool_name // "")"' 2>/dev/null)"
 
@@ -58,7 +69,8 @@ fi
 if [ "$state" = done ]; then
   # Skip the badge when this window is on screen in a focused terminal.
   set -- $(tmux display -p -t "$TMUX_PANE" '#{window_active} #{session_name}')
-  if [ "$1" = 1 ] && tmux list-clients -t "$2" -F '#{client_flags}' 2>/dev/null | grep -q focused; then
+  # (the tab painter's control-mode client always reports focused; skip it)
+  if [ "$1" = 1 ] && tmux list-clients -t "$2" -F '#{?client_control_mode,,#{client_flags}}' 2>/dev/null | grep -q focused; then
     state=off
   fi
 fi

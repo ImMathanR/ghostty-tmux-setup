@@ -24,6 +24,7 @@ import math
 import os
 import random
 import re
+import select
 import subprocess
 import sys
 import time
@@ -294,8 +295,92 @@ def encode(text, cells):
     return "".join(out)
 
 
-def tmux(args):
+def spawn_tmux(args):
     return subprocess.run(["tmux", *args], capture_output=True, text=True).stdout
+
+
+class Control:
+    """tmux commands over one control-mode client: ~1 ms a command, where spawning a tmux
+    process costs 5-300 ms under endpoint security, too slow for 8 fps.
+    The client is attached with no-output (no pane traffic) and ignore-size (never sizes a
+    window); scripts that look at clients skip it by #{client_control_mode}."""
+    SAFE = re.compile(r"[A-Za-z0-9_@%:.,/=+-]+")
+
+    def __init__(self):
+        self.proc, self.buf, self.retry_at = None, b"", 0.0
+
+    def connect(self):
+        self.retry_at = time.monotonic() + 5
+        proc = subprocess.Popen(["tmux", "-C", "attach", "-f", "no-output,ignore-size"], stdin=subprocess.PIPE,
+                                stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, start_new_session=True)
+        self.proc, self.buf = proc, b""
+        if self.read_block(flags=b"0") is None:  # the attach itself; fails if tmux has no sessions yet
+            self.close()
+
+    def close(self):
+        if self.proc:
+            self.proc.kill()
+            self.proc.wait()
+            try:
+                self.proc.stdin.close()
+            except OSError:
+                pass  # tmux already gone: the unsent bytes don't matter
+        self.proc = None
+
+    def line(self):
+        while b"\n" not in self.buf:
+            if not select.select([self.proc.stdout], [], [], 2)[0]:
+                return None  # tmux stopped answering
+            chunk = os.read(self.proc.stdout.fileno(), 65536)
+            if not chunk:
+                return None  # %exit: the session went away or the server stopped
+            self.buf += chunk
+        line, self.buf = self.buf.split(b"\n", 1)
+        return line
+
+    def read_block(self, flags=b"1"):
+        """Output of the next command reply, "" for an error, None if the connection is gone."""
+        out, inside = [], False
+        while True:
+            line = self.line()
+            if line is None:
+                return None
+            if not inside:  # notifications (%window-add, ...) come between replies
+                inside = line.startswith(b"%begin ") and line.split()[3] == flags
+            elif line.startswith((b"%end ", b"%error ")) and line.split()[3] == flags:
+                return "" if line.startswith(b"%error") else b"".join(l + b"\n" for l in out).decode("utf-8", "replace")
+            else:
+                out.append(line)
+
+    def quote(self, arg):
+        return arg if self.SAFE.fullmatch(arg) else "'" + arg.replace("'", "'\\''") + "'"
+
+    def __call__(self, args):
+        if self.proc is None and time.monotonic() >= self.retry_at:
+            self.connect()
+        if self.proc is None:
+            return spawn_tmux(args)
+        commands, cmd = [], []
+        for arg in args + [";"]:
+            if arg == ";":
+                commands.append(" ".join(map(self.quote, cmd)))
+                cmd = []
+            else:
+                cmd.append(arg)
+        try:
+            # one line per command, so a failed one (a window that just closed) can't skip the rest
+            self.proc.stdin.write("".join(c + "\n" for c in commands if c).encode())
+            self.proc.stdin.flush()
+            outs = [self.read_block() for c in commands if c]
+        except OSError:
+            outs = [None]
+        if None in outs:
+            self.close()
+            return spawn_tmux(args)
+        return "".join(outs)
+
+
+tmux = Control()
 
 
 # ── cat stickers ──
@@ -402,22 +487,36 @@ MILESTONES = {"ask": [(STUCK_AFTER, "ask+"), (GHOSTED_AFTER, "ghosted")],
 tabs = {}  # window_id -> dict(state, since, prev, cells)
 shown_score = [None]
 last_change, client = time.time(), {"checked": 0.0, "activity": 0.0, "focused": False}
+# One tmux call per frame (it may fall back to spawning a tmux process, which costs up to
+# ~0.3 s under endpoint security). Each call reads this frame's state and writes the
+# previous frame. Reads go first, so a write to a window that just closed (which ends a
+# spawned command list) can't cut them off.
+SPLIT = "@@agent-anim-split@@"
+writes = []
 while True:
     now = time.monotonic()
-    rows = tmux(["list-windows", "-a", "-f", "#{?#{m:_*,#{session_name}},0,1}", "-F",
-                 "#{window_id}\t#{window_index}\t#{window_name}\t#{window_active}\t#{@agent}\t#{@agent_fmt}\t#{@agent_demo_age}\t#{@agent_at}"])
+    reads = ["list-windows", "-a", "-f", "#{?#{m:_*,#{session_name}},0,1}", "-F",
+             "#{window_id}\t#{window_index}\t#{window_name}\t#{window_active}\t#{@agent}\t#{@agent_fmt}\t#{@agent_demo_age}\t#{@agent_at}", ";"]
+    refresh = now - client["checked"] > 1.5
+    if refresh:
+        for query in (["list-clients", "-f", "#{?#{m:_*,#{client_session}},0,#{?client_control_mode,0,1}}", "-F", "#{client_activity} #{client_flags}"],
+                      ["show", "-gqv", "@agent_plain_fmt"], ["show", "-gqv", "@agent_plain_current_fmt"],
+                      ["show", "-gqv", "@agent_demo_sleep"]):
+            reads += ["display", "-p", SPLIT, ";", *query, ";"]
+    parts = tmux((reads + writes)[:-1]).split(SPLIT + "\n")
+    writes, rows = [], parts[0]
     if not rows:
         break  # tmux server gone
-    if now - client["checked"] > 1.5:
-        seen = [l.split(" ", 1) for l in tmux(["list-clients", "-f", "#{?#{m:_*,#{client_session}},0,1}", "-F", "#{client_activity} #{client_flags}"]).splitlines()]
+    if refresh and len(parts) == 5:
+        seen = [l.split(" ", 1) for l in parts[1].splitlines()]
         # plain tabs use the host config's own colours (tas: gruvbox; as-tmux: grey/amber)
-        for opt, name in (("@agent_plain_fmt", "IDLE"), ("@agent_plain_current_fmt", "CURRENT")):
-            m = re.search(r"fg=(#[0-9a-fA-F]{6})", tmux(["show", "-gqv", opt]))
+        for value, name in ((parts[2], "IDLE"), (parts[3], "CURRENT")):
+            m = re.search(r"fg=(#[0-9a-fA-F]{6})", value)
             if m:
                 globals()[name] = hexrgb(m.group(1))
         client.update(checked=now, activity=max([float(a) for a, _ in seen] or [0]),
                       focused=any("focused" in f for _, f in seen),
-                      demo_sleep=tmux(["show", "-gqv", "@agent_demo_sleep"]).strip() == "on")
+                      demo_sleep=parts[4].strip() == "on")
     real_states = [(l.split("\t") + [""] * 5)[4] for l in rows.splitlines()]
     sleeping = client.get("demo_sleep") or (  # @agent_demo_sleep on: doze right now
         time.time() - max(last_change, client["activity"]) > SLEEP_AFTER
@@ -481,15 +580,15 @@ while True:
         if tab["state"] and tab["state"] != "sleep":
             board.append((tab["state"], idx, name, int(max(0, age - settle))))
         frame = encode(text, cells)
-        if frame != fmt:
+        if frame != tab.get("sent"):  # not fmt: that was read before the last frame's write
+            tab["sent"] = frame
             cmds += ["set", "-w", "-t", wid, "@agent_fmt", frame, ";"]
     for wid in set(tabs) - {l.split("\t", 1)[0] for l in rows.splitlines()}:
         del tabs[wid]  # window closed
-    if cmds:
-        tmux(cmds[:-1])
     react(events, [t["state"] for t in tabs.values()], now)
     score = scoreboard(board, now if sleeping else None)
     if score != shown_score[0]:
         shown_score[0] = score
-        tmux(["set", "-g", "@agent_score", score])
-    time.sleep(1 / fps)
+        cmds += ["set", "-g", "@agent_score", score, ";"]
+    writes = cmds
+    time.sleep(max(0, 1 / fps - (time.monotonic() - now)))  # the tmux call already took part of the frame

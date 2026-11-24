@@ -11,7 +11,7 @@ S="$(mktemp -d /tmp/gts.XXXXXX)"
 # Keep tools the real install put in ~/.local/bin (lazygit on Linux).
 export PATH="$HOME/.local/bin:$PATH"
 export HOME="$H" TMUX_TMPDIR="$S" XDG_CONFIG_HOME="$H/.config"
-unset TMUX TMUX_PANE
+unset TMUX TMUX_PANE REX_SESSION
 cleanup() { tmux kill-server 2>/dev/null || true; rm -rf "$H" "$S"; }
 trap cleanup EXIT
 
@@ -35,6 +35,12 @@ import json, sys
 h = json.load(open(sys.argv[1]))["hooks"]
 raise SystemExit(sum(len(v) for v in h.values()) != 12)
 PY
+
+expect "Rex status and cat helpers installed (no Rex dependency required)" \
+  test -f "$HOME/.claude/hooks/rex-agent-status.sh" -a -f "$HOME/.claude/hooks/rex-cat.py" \
+       -a -f "$HOME/.claude/hooks/rex-cat-layer.lua"
+expect "restore helpers installed and executable" \
+  test -x "$HOME/.claude/hooks/resurrect-save-command.sh" -a -x "$HOME/.claude/hooks/tmux-unzoom-all.sh"
 
 # A painter started by the check could still hold its lock when the first
 # real hook runs, which then skips starting one. The painter makes the lock.
@@ -64,6 +70,9 @@ echo "==> tmux with plugins"
 tmux new-session -d -s smoke -x 200 -y 50
 expect "prefix is C-a" test "$(tmux show -gv prefix)" = C-a
 expect "tmux-resurrect loaded (prefix C-s saves)" wait_for 10 bash -c "tmux list-keys -T prefix C-s 2>/dev/null | grep -q resurrect"
+strategy="$(tmux show -gv @resurrect-save-command-strategy)"
+expect "tmux-resurrect custom save strategy resolves" \
+  test -x "$HOME/.tmux/plugins/tmux-resurrect/save_command_strategies/$strategy.sh"
 expect "tmux-continuum loaded" bash -c "tmux show -gv status-right | grep -q continuum_save"
 expect "agent tab formats wrapped" bash -c "tmux show -gv window-status-format | grep -q @agent_fmt"
 expect "status-right has the scoreboard and birdseye button" bash -c "tmux show -gv status-right | grep -q '@agent_score' && tmux show -gv status-right | grep -q birdseye"
@@ -91,7 +100,7 @@ expect "$(wc -w <<<"$keys" | tr -d ' ') prefix keys bound${missing:+ (missing:$m
 
 echo "==> Claude Code hook events paint the tab"
 pane="$(tmux display -p -t smoke '#{pane_id}')"
-hook() { printf '%s' "$2" | TMUX_PANE="$pane" bash "$HOME/.claude/hooks/tmux-agent-state.sh" "$1"; }
+hook() { printf '%s' "$2" | AGENT_STATE_FG=1 TMUX_PANE="$pane" bash "$HOME/.claude/hooks/tmux-agent-state.sh" "$1"; }
 hook working '{"hook_event_name":"UserPromptSubmit","session_id":"abc-123","cwd":"/tmp"}'
 expect "UserPromptSubmit → @agent=working" test "$(tmux show -wv -t "$pane" @agent)" = working
 expect "painter started and animates the tab" wait_for 5 bash -c "[ -n \"\$(tmux show -wqv -t $pane @agent_fmt)\" ]"

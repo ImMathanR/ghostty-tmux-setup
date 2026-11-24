@@ -6,7 +6,7 @@ src = open(os.path.join(HERE, "tmux-agent-crack.py")).read().replace('if __name_
 m = {"__file__": os.path.join(HERE, "tmux-agent-crack.py")}
 exec(src, m)
 
-WINDOWS = [("1", "maxwell"), ("2", "cua"), ("3", "laya-deploy"), ("4", "artemis"), ("5", "bjev")]
+WINDOWS = [("1", "project"), ("2", "api"), ("3", "deploy-demo"), ("4", "website"), ("5", "docs")]
 
 
 def test_tmux_output_keeps_meaningful_spaces():
@@ -18,7 +18,7 @@ def test_tmux_output_keeps_meaningful_spaces():
 def test_tab_five_lands_on_its_own_cells():
     left = m["strip_styles"](m["clean"]("#[fg=#FFC107,bold] tas-workspace \n"))
     sep = m["clean"]("x\t \n").split("\t")[1]
-    # 15 (session) + " 1:maxwell "+1 + " 2:cua "+1 + " 3:laya-deploy "+1 + " 4:artemis "+1
+    # 15 (session) + " 1:project "+1 + " 2:api "+1 + " 3:deploy-demo "+1 + " 4:website "+1
     assert m["tab_column"](len(left), WINDOWS, "5", sep) == 63
 
 
